@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lead-scraper
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --workers 2 --threads 2 --bind 0.0.0.0:$PORT --timeout 120"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.8
+      - key: REQUEST_TIMEOUT
+        value: "12"
+      - key: MAX_WORKERS
+        value: "2"
+      - key: DELAY_BETWEEN_REQUESTS
+        value: "1.0"
