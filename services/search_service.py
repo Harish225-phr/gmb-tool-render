@@ -58,10 +58,10 @@ class SearchService:
         self.jobs: Dict[str, SearchJob] = {}
         self.lock = threading.Lock()
         
-        # Instantiate available providers
+        # Instantiate available providers with fast web search and deep OSM POIs
         self.providers: List[BaseSearchProvider] = [
-            OsmOverpassProvider(user_agent=config.USER_AGENT, timeout=config.REQUEST_TIMEOUT),
             PublicSearchProvider(user_agent=config.USER_AGENT, timeout=config.REQUEST_TIMEOUT),
+            OsmOverpassProvider(user_agent=config.USER_AGENT, timeout=config.REQUEST_TIMEOUT),
             PublicDirectoryProvider(user_agent=config.USER_AGENT, timeout=config.REQUEST_TIMEOUT)
         ]
 
@@ -129,9 +129,10 @@ class SearchService:
                 if not provider.enabled or job.cancelled:
                     continue
 
+                needed = max(5, job.limit_per_location - len(location_leads))
                 try:
-                    logger.info("Querying provider %s for '%s' in '%s'", provider.name, job.niche, location)
-                    results = provider.search(job.niche, location, limit=job.limit_per_location)
+                    logger.info("Querying provider %s for '%s' in '%s' (needed: %d)", provider.name, job.niche, location, needed)
+                    results = provider.search(job.niche, location, limit=needed)
                     if results:
                         location_leads.extend(results)
                         location_failed = False

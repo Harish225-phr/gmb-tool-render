@@ -8,23 +8,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Common tag mappings for business niches
+# Comprehensive tag mappings for business niches
 NICHE_TAG_MAP = {
-    "plumber": ["craft=plumber", "shop=plumber"],
-    "electrician": ["craft=electrician"],
-    "hvac": ["craft=hvac", "craft=air_conditioning"],
-    "roofer": ["craft=roofer"],
+    "plumber": ["craft=plumber", "shop=plumber", "craft=drainage"],
+    "electrician": ["craft=electrician", "shop=electrical"],
+    "hvac": ["craft=hvac", "craft=air_conditioning", "craft=heating_installation", "shop=hvac", "office=hvac"],
+    "roofer": ["craft=roofer", "craft=roofing"],
     "restaurant": ["amenity=restaurant", "amenity=fast_food", "amenity=cafe"],
-    "cafe": ["amenity=cafe"],
-    "salon": ["shop=hairdresser", "shop=beauty"],
+    "cafe": ["amenity=cafe", "shop=coffee"],
+    "salon": ["shop=hairdresser", "shop=beauty", "shop=massage", "amenity=spa"],
     "hotel": ["tourism=hotel", "tourism=motel", "tourism=guest_house"],
-    "dentist": ["amenity=dentist"],
-    "lawyer": ["office=lawyer"],
+    "dentist": ["amenity=dentist", "healthcare=dentist"],
+    "lawyer": ["office=lawyer", "office=legal"],
     "bakery": ["shop=bakery"],
-    "auto repair": ["shop=car_repair"],
-    "mechanic": ["shop=car_repair"],
+    "auto repair": ["shop=car_repair", "craft=car_repair", "shop=tyres"],
+    "mechanic": ["shop=car_repair", "craft=car_repair"],
     "bar": ["amenity=bar", "amenity=pub"],
     "gym": ["leisure=fitness_centre"],
+    "cleaning": ["craft=cleaner", "shop=dry_cleaning"],
+    "accountant": ["office=accountant", "office=tax_advisor"],
+    "landscaper": ["craft=gardener", "craft=landscaper"],
+    "painter": ["craft=painter"],
+    "carpenter": ["craft=carpenter"],
+    "locksmith": ["craft=locksmith", "shop=locksmith"]
 }
 
 class OsmOverpassProvider(BaseSearchProvider):
@@ -36,9 +42,9 @@ class OsmOverpassProvider(BaseSearchProvider):
     """
 
     OVERPASS_SERVERS = [
-        "https://overpass-api.de/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter"
+        "https://lz4.overpass-api.de/api/interpreter",
+        "https://z.overpass-api.de/api/interpreter",
+        "https://overpass-api.de/api/interpreter"
     ]
     NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 
@@ -66,9 +72,12 @@ class OsmOverpassProvider(BaseSearchProvider):
                     item = data[0]
                     bbox = item.get("boundingbox")
                     if bbox and len(bbox) == 4:
-                        return float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
+                        s, n, w, e = float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])
+                        # Slightly broaden boundary to capture suburban commercial districts
+                        pad = 0.04
+                        return s - pad, n + pad, w - pad, e + pad
                     lat, lon = float(item["lat"]), float(item["lon"])
-                    delta = 0.1
+                    delta = 0.12
                     return lat - delta, lat + delta, lon - delta, lon + delta
         except Exception as e:
             self.logger.warning("Geocoding failed for %s: %s", location, e)
@@ -94,7 +103,14 @@ class OsmOverpassProvider(BaseSearchProvider):
             tag_filter = "".join([f'node[{t}]({min_lat},{min_lon},{max_lat},{max_lon}); way[{t}]({min_lat},{min_lon},{max_lat},{max_lon}); ' for t in tags])
         else:
             first_word = niche_lower.split()[0] if niche_lower else ""
-            tag_filter = f'node["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); way["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+            tag_filter = (
+                f'node["craft"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+                f'node["shop"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+                f'node["amenity"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+                f'node["office"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+                f'way["craft"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+                f'way["shop"]["name"~"{first_word}",i]({min_lat},{min_lon},{max_lat},{max_lon}); '
+            )
 
         overpass_query = f"""
         [out:json][timeout:15];

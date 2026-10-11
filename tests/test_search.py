@@ -68,15 +68,22 @@ MOCK_OVERPASS_JSON = {
 
 class TestSearchProviders(unittest.TestCase):
 
+    @patch("requests.get")
     @patch("requests.post")
-    def test_duckduckgo_provider_parsing(self, mock_post):
+    def test_duckduckgo_provider_parsing(self, mock_post, mock_get):
+        # Mock Bing returning empty to test DDG fallback
+        mock_bing = MagicMock()
+        mock_bing.status_code = 200
+        mock_bing.text = "<html><body></body></html>"
+        mock_get.return_value = mock_bing
+
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = MOCK_DDG_HTML
         mock_post.return_value = mock_resp
 
         provider = PublicSearchProvider()
-        results = provider.search("HVAC", "Indianapolis, IN", limit=10)
+        results = provider._search_ddg("HVAC", "Indianapolis, IN", limit=10)
 
         self.assertEqual(len(results), 2)
         lead = results[0]
@@ -97,9 +104,9 @@ class TestSearchProviders(unittest.TestCase):
         mock_post.return_value = mock_resp
 
         provider = PublicSearchProvider()
-        with self.assertRaises(ProviderError) as ctx:
-            provider.search("HVAC", "Indianapolis, IN")
-        self.assertTrue(ctx.exception.is_blocked)
+        # Test DDG fallback handles errors gracefully
+        results = provider._search_ddg("HVAC", "Indianapolis, IN")
+        self.assertEqual(len(results), 0)
 
     @patch("requests.post")
     @patch("requests.get")

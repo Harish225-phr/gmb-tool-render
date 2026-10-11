@@ -98,6 +98,12 @@ SAMPLE_LEADS = [
 def index():
     return render_template("index.html")
 
+@app.route("/favicon.ico")
+def favicon():
+    """Serves a clean SVG favicon to avoid browser 404 console errors."""
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#0d6efd"/><path d="M16 8v16M8 16h16" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/></svg>'
+    return Response(svg, mimetype="image/svg+xml", headers={"Cache-Control": "public, max-age=86400"})
+
 @app.route("/health")
 @app.route("/api/health")
 def health():
